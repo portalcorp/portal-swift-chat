@@ -5,6 +5,7 @@
 //  Created by Jordan Singer on 10/4/24.
 //
 
+import Metal
 import MLXLMCommon
 import os
 import SwiftUI
@@ -173,11 +174,18 @@ struct OnboardingInstallModelView: View {
     }
 
     func checkMetal3Support() {
-        #if os(iOS)
         if let device = MTLCreateSystemDefaultDevice() {
+            #if os(iOS) || os(visionOS)
             deviceSupportsMetal3 = device.supportsFamily(.metal3)
+            #elseif os(macOS)
+            // macOS devices with Apple Silicon support Metal 3
+            deviceSupportsMetal3 = device.supportsFamily(.apple7) || device.supportsFamily(.metal3)
+            #else
+            deviceSupportsMetal3 = false
+            #endif
+        } else {
+            deviceSupportsMetal3 = false
         }
-        #endif
     }
 }
 

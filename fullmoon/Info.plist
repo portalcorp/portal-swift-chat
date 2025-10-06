@@ -2,7 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>We use the microphone to capture voice notes you attach to chats.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>We use the camera to capture photos you attach to chats.</string>
 </dict>
 </plist>

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild:*)",
+      "Read(//Library/Developer/CoreSimulator/Volumes/**)",
+      "Read(//System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain/**)",
+      "Bash(hdiutil:*)",
+      "Bash(xcrun:*)",
+      "Bash(/Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/metal --version)",
+      "Bash(sudo xcode-select:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
