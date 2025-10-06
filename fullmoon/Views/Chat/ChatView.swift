@@ -130,10 +130,15 @@ struct ChatView: View {
             }
         }
         #if os(iOS) || os(visionOS)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(platformBackgroundColor)
-        )
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.12), radius: 18, y: 10)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.25))
+        }
         #elseif os(macOS)
         .background(
             RoundedRectangle(cornerRadius: 16)
@@ -287,6 +292,102 @@ struct ChatView: View {
         )
     }
 #endif
+    @ViewBuilder
+    var bottomControls: some View {
+        HStack(alignment: .bottom, spacing: 12) {
+            attachmentButton
+#if os(iOS)
+            if isAudioRecorderVisible {
+                audioRecordingInput
+                    .transition(.opacity.combined(with: .scale))
+            } else {
+                chatInput
+            }
+#else
+            chatInput
+#endif
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    var bottomBar: some View {
+#if os(iOS)
+        bottomBarIOS
+#else
+        bottomBarDefault
+#endif
+    }
+
+#if os(iOS)
+    private var bottomBarIOS: some View {
+        VStack(spacing: 12) {
+            if hasAttachmentPreviews {
+                attachmentsPreview
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            bottomControls
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, hasAttachmentPreviews ? 12 : 16)
+        .padding(.bottom, 20)
+        .background(BottomBarBackground())
+    }
+
+    private struct BottomBarBackground: View {
+        var body: some View {
+            BlurView(style: .systemUltraThinMaterial)
+                .overlay(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.75),
+                            Color.black.opacity(0.45),
+                            Color.black.opacity(0.2),
+                            .clear
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                    .blendMode(.plusDarker)
+                )
+                .mask(
+                    LinearGradient(
+                        colors: [
+                            .white,
+                            Color.white.opacity(0.55),
+                            .clear
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
+                .ignoresSafeArea(edges: .bottom)
+        }
+
+        private struct BlurView: UIViewRepresentable {
+            var style: UIBlurEffect.Style
+
+            func makeUIView(context: Context) -> UIVisualEffectView {
+                let view = UIVisualEffectView(effect: UIBlurEffect(style: style))
+                view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                return view
+            }
+
+            func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+                uiView.effect = UIBlurEffect(style: style)
+            }
+        }
+    }
+#endif
+
+#if !os(iOS)
+    private var bottomBarDefault: some View {
+        bottomControls
+            .padding()
+    }
+#endif
+
     var attachmentButton: some View {
         AttachmentMenuButton(config: $attachmentMenuConfig) {
             Group {
@@ -296,13 +397,22 @@ struct ChatView: View {
             }
             #if os(iOS) || os(visionOS)
             .frame(width: 48, height: 48)
+            .background {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
+            }
+            .overlay {
+                Circle()
+                    .stroke(Color.white.opacity(0.25))
+            }
             #elseif os(macOS)
             .frame(width: 32, height: 32)
-            #endif
             .background {
                 Circle()
                     .fill(platformBackgroundColor)
             }
+            #endif
         } onTap: {
             appManager.playHaptic()
             isPromptFocused = false
@@ -404,29 +514,9 @@ struct ChatView: View {
                             .foregroundStyle(.quaternary)
                         Spacer()
                     }
-
-#if os(iOS)
-                    if hasAttachmentPreviews {
-                        attachmentsPreview
-                            .padding(.horizontal)
-                            .padding(.bottom, 8)
-                    }
-#endif
-
-                    HStack(alignment: .bottom) {
-                        attachmentButton
-#if os(iOS)
-                        if isAudioRecorderVisible {
-                            audioRecordingInput
-                                .transition(.opacity.combined(with: .scale))
-                        } else {
-                            chatInput
-                        }
-#else
-                        chatInput
-#endif
-                    }
-                    .padding()
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    bottomBar
                 }
                 .navigationTitle(chatTitle)
             #if os(iOS) || os(visionOS)
