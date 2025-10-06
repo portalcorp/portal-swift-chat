@@ -6,6 +6,7 @@
 //
 
 import MarkdownUI
+import StoreKit
 import SwiftUI
 #if os(iOS)
 import PhotosUI
@@ -57,7 +58,8 @@ struct ChatView: View {
     @State var prompt = ""
     @FocusState.Binding var isPromptFocused: Bool
     @Binding var showChats: Bool
-    @Binding var showSettings: Bool
+
+    @Environment(\.requestReview) private var requestReview
     
     @State var thinkingTime: TimeInterval?
     
@@ -373,6 +375,20 @@ struct ChatView: View {
         return "chat"
     }
 
+    private func startNewChat() {
+        currentThread = nil
+        isPromptFocused = true
+        appManager.playHaptic()
+        requestReviewIfAppropriate()
+    }
+
+    private func requestReviewIfAppropriate() {
+        if appManager.numberOfVisits - appManager.numberOfVisitsOfLastRequest >= 5 {
+            requestReview()
+            appManager.numberOfVisitsOfLastRequest = appManager.numberOfVisits
+        }
+    }
+
     var body: some View {
         AttachmentMenuView(config: $attachmentMenuConfig) {
             NavigationStack {
@@ -459,21 +475,17 @@ struct ChatView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: {
-                            appManager.playHaptic()
-                            showSettings.toggle()
-                        }) {
-                            Image(systemName: "gear")
+                        Button(action: startNewChat) {
+                            Image(systemName: "plus")
                         }
+                        .keyboardShortcut("N", modifiers: [.command])
                     }
                     #elseif os(macOS)
                     ToolbarItem(placement: .primaryAction) {
-                        Button(action: {
-                            appManager.playHaptic()
-                            showSettings.toggle()
-                        }) {
-                            Label("settings", systemImage: "gear")
+                        Button(action: startNewChat) {
+                            Label("new", systemImage: "plus")
                         }
+                        .keyboardShortcut("N", modifiers: [.command])
                     }
                     #endif
                 }
@@ -735,7 +747,7 @@ struct ChatView: View {
 
 #Preview {
     @FocusState var isPromptFocused: Bool
-    ChatView(currentThread: .constant(nil), isPromptFocused: $isPromptFocused, showChats: .constant(false), showSettings: .constant(false))
+    ChatView(currentThread: .constant(nil), isPromptFocused: $isPromptFocused, showChats: .constant(false))
 }
 
 #if os(iOS)
