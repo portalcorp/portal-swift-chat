@@ -34,7 +34,7 @@ class LoopingPlayerUIView: UIView {
 
     init(videoName: String) {
         let url = URL(fileURLWithPath: Bundle.main.path(forResource: videoName, ofType: "mp4")!)
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let item = AVPlayerItem(asset: asset)
 
         super.init(frame: .zero)
@@ -96,7 +96,7 @@ class LoopingPlayerNSView: NSView {
             fatalError("Video file \(videoName).mp4 not found in bundle.")
         }
         let url = URL(fileURLWithPath: path)
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let item = AVPlayerItem(asset: asset)
         
         super.init(frame: .zero)

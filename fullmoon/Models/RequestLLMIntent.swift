@@ -47,7 +47,7 @@ struct RequestLLMIntent: AppIntent {
             if let output = thread.messages.last?.content {
                 return .result(value: output, dialog: "continue chatting in the app") // if prompt is empty and this is not the first message, return the result
             } else {
-                throw $prompt.requestValue("chat") // re-prompt
+                throw $prompt.requestValue(IntentDialog("chat")) // re-prompt
             }
         }
 
@@ -68,7 +68,7 @@ struct RequestLLMIntent: AppIntent {
             thread.messages.append(responseMessage)
 
             if continuous {
-                throw $prompt.requestValue("\(output)") // re-prompt infinitely until user cancels
+                throw $prompt.requestValue(IntentDialog("\(output)")) // re-prompt infinitely until user cancels
             }
             
             if continuous {
