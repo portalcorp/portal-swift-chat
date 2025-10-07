@@ -33,6 +33,7 @@ struct ChatView: View {
 
     @State var generatingThreadID: UUID?
     @State var attachmentMenuConfig = AttachmentMenuConfig(symbolImage: "plus")
+    @State var shouldRestorePromptFocus = false
     #if os(iOS)
         @State var imageAttachments: [ImageAttachment] = []
         @State var fileAttachments: [FileAttachment] = []

@@ -8,6 +8,22 @@ struct AttachmentMenuView<Content: View>: View {
     @State private var animateLabels = false
     @State private var activeActionID: String?
 
+    private var showContentAnimation: Animation {
+        .snappy(duration: 0.28, extraBounce: 0.08)
+    }
+
+    private var hideContentAnimation: Animation {
+        .snappy(duration: 0.22, extraBounce: 0.05)
+    }
+
+    private func labelAnimation(isShowing: Bool) -> Animation {
+        if isShowing {
+            return .easeOut(duration: 0.2).delay(0.02)
+        } else {
+            return .easeIn(duration: 0.12)
+        }
+    }
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -50,11 +66,11 @@ struct AttachmentMenuView<Content: View>: View {
                     config.hideSourceView = true
                 }
 
-                withAnimation(.smooth(duration: 0.45, extraBounce: 0)) {
+                withAnimation(newValue ? showContentAnimation : hideContentAnimation) {
                     animateContent = newValue
                 }
 
-                withAnimation(.easeInOut(duration: newValue ? 0.35 : 0.15)) {
+                withAnimation(labelAnimation(isShowing: newValue)) {
                     animateLabels = newValue
                 }
             }
@@ -74,7 +90,11 @@ struct AttachmentMenuView<Content: View>: View {
             .background {
                 Rectangle()
                     .foregroundStyle(.clear)
-                    .frame(width: proxy.size.width, height: proxy.size.height + proxy.safeAreaInsets.top + proxy.safeAreaInsets.bottom)
+                    .frame(
+                        width: proxy.size.width,
+                        height: proxy.size.height + proxy.safeAreaInsets.top
+                            + proxy.safeAreaInsets.bottom
+                    )
                     .contentShape(.rect)
                     .onTapGesture {
                         guard config.showMenu else { return }
@@ -185,46 +205,72 @@ extension ChatView {
         AttachmentMenuView(config: $attachmentMenuConfig) {
             content()
         } actions: {
+            #if os(iOS)
+                AttachmentMenuAction(symbolImage: "camera.fill", text: "Camera") {
+                    attachmentMenuConfig.showMenu = false
+                    presentCamera()
+                }
+
+                AttachmentMenuAction(symbolImage: "photo.on.rectangle.fill", text: "Photos") {
+                    attachmentMenuConfig.showMenu = false
+                    presentPhotoLibrary()
+                }
+
+                AttachmentMenuAction(symbolImage: "doc", text: "Files") {
+                    attachmentMenuConfig.showMenu = false
+                    presentDocumentPicker()
+                }
+            #endif
+        }
+        .onChange(of: attachmentMenuConfig.showMenu) { _, isPresented in
+            if !isPresented && !attachmentMenuConfig.hideSourceView {
+                restorePromptFocusIfNeeded()
+            }
+        }
+        .onChange(of: attachmentMenuConfig.hideSourceView) { _, isHidden in
+            if !isHidden {
+                restorePromptFocusIfNeeded()
+            }
+        }
         #if os(iOS)
-            AttachmentMenuAction(symbolImage: "camera.fill", text: "Camera") {
-                attachmentMenuConfig.showMenu = false
-                presentCamera()
+            .onChange(of: activeAttachmentSheet) { _, newSheet in
+                if newSheet == nil {
+                    restorePromptFocusIfNeeded()
+                }
             }
+            .sheet(item: $activeAttachmentSheet) { sheet in
+                switch sheet {
+                case .camera:
+                    CameraPicker { image in
+                        handlePickedImage(image)
+                    }
+                    .ignoresSafeArea()
 
-            AttachmentMenuAction(symbolImage: "photo.on.rectangle.fill", text: "Photos") {
-                attachmentMenuConfig.showMenu = false
-                presentPhotoLibrary()
-            }
+                case .photos:
+                    PhotoLibraryPicker(selectionLimit: 1) { image in
+                        handlePickedImage(image)
+                    }
+                    .ignoresSafeArea()
 
-            AttachmentMenuAction(symbolImage: "doc", text: "Files") {
-                attachmentMenuConfig.showMenu = false
-                presentDocumentPicker()
+                case .files:
+                    DocumentPicker { urls in
+                        handlePickedFiles(urls)
+                    }
+                    .ignoresSafeArea()
+                }
             }
+            .animation(.smooth(duration: 0.25, extraBounce: 0), value: hasAttachmentPreviews)
         #endif
-        }
-    #if os(iOS)
-        .sheet(item: $activeAttachmentSheet) { sheet in
-            switch sheet {
-            case .camera:
-                CameraPicker { image in
-                    handlePickedImage(image)
-                }
-                .ignoresSafeArea()
+    }
 
-            case .photos:
-                PhotoLibraryPicker(selectionLimit: 1) { image in
-                    handlePickedImage(image)
-                }
-                .ignoresSafeArea()
-
-            case .files:
-                DocumentPicker { urls in
-                    handlePickedFiles(urls)
-                }
-                .ignoresSafeArea()
-            }
+    private func restorePromptFocusIfNeeded() {
+        guard shouldRestorePromptFocus else { return }
+        #if os(iOS)
+            guard activeAttachmentSheet == nil else { return }
+        #endif
+        shouldRestorePromptFocus = false
+        DispatchQueue.main.async {
+            isPromptFocused = true
         }
-        .animation(.smooth(duration: 0.25, extraBounce: 0), value: hasAttachmentPreviews)
-    #endif
     }
 }

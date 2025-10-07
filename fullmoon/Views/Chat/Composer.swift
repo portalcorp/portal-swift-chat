@@ -99,8 +99,12 @@ extension ChatView {
             }
             #endif
         } onTap: {
+            let wasFocused = isPromptFocused
             appManager.playHaptic()
-            isPromptFocused = false
+            shouldRestorePromptFocus = wasFocused
+            if wasFocused {
+                isPromptFocused = false
+            }
         }
     }
 
