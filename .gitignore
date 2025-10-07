@@ -30,3 +30,6 @@ fastlane/test_output
 # Environment files
 .env
 GoogleService-Info.plist
+
+# references
+references/

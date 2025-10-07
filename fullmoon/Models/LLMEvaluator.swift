@@ -9,6 +9,7 @@ import MLX
 import MLXLLM
 import MLXLMCommon
 import MLXRandom
+import MLXVLM
 import SwiftUI
 
 enum LLMEvaluatorError: Error {
@@ -48,8 +49,8 @@ class LLMEvaluator {
     }
 
     /// parameters controlling the output
-    let generateParameters = GenerateParameters(temperature: 0.5)
-    let maxTokens = 4096
+    let generateParameters = GenerateParameters(temperature: 0.6)
+    let maxTokens = 8192
 
     /// update the display every N tokens -- 4 looks like it updates continuously
     /// and is low overhead.  observed ~15% reduction in tokens/s when updating
@@ -75,12 +76,24 @@ class LLMEvaluator {
             // limit the buffer cache
             MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
 
-            let modelContainer = try await LLMModelFactory.shared.loadContainer(configuration: model) {
-                [modelConfiguration] progress in
-                Task { @MainActor in
-                    self.modelInfo =
-                        "Downloading \(modelConfiguration.name): \(Int(progress.fractionCompleted * 100))%"
-                    self.progress = progress.fractionCompleted
+            let modelContainer: ModelContainer
+            if model.isVisionModel {
+                modelContainer = try await VLMModelFactory.shared.loadContainer(configuration: model) {
+                    [modelConfiguration] progress in
+                    Task { @MainActor in
+                        self.modelInfo =
+                            "Downloading \(modelConfiguration.name): \(Int(progress.fractionCompleted * 100))%"
+                        self.progress = progress.fractionCompleted
+                    }
+                }
+            } else {
+                modelContainer = try await LLMModelFactory.shared.loadContainer(configuration: model) {
+                    [modelConfiguration] progress in
+                    Task { @MainActor in
+                        self.modelInfo =
+                            "Downloading \(modelConfiguration.name): \(Int(progress.fractionCompleted * 100))%"
+                        self.progress = progress.fractionCompleted
+                    }
                 }
             }
             modelInfo =
@@ -109,18 +122,24 @@ class LLMEvaluator {
         do {
             let modelContainer = try await load(modelName: modelName)
 
-            // augment the prompt as needed
-            let promptHistory = await modelContainer.configuration.getPromptHistory(thread: thread, systemPrompt: systemPrompt)
+            let configuration = await modelContainer.configuration
 
-            if await modelContainer.configuration.modelType == .reasoning {
+            if configuration.modelType == .reasoning {
                 isThinking = true
             }
 
             // each time you generate you will get something new
             MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
 
+            let chatHistory = buildChatHistory(
+                thread: thread, systemPrompt: systemPrompt,
+                configuration: configuration)
+            let userInput = UserInput(
+                chat: chatHistory,
+                processing: .init(resize: .init(width: 1024, height: 1024)))
+
             let result = try await modelContainer.perform { context in
-                let input = try await context.processor.prepare(input: .init(messages: promptHistory))
+                let input = try await context.processor.prepare(input: userInput)
                 return try MLXLMCommon.generate(
                     input: input, parameters: generateParameters, context: context
                 ) { tokens in
@@ -171,5 +190,39 @@ class LLMEvaluator {
         thinkingTime = nil
         startTime = nil
         loadState = .idle
+    }
+
+    private func buildChatHistory(
+        thread: Thread,
+        systemPrompt: String,
+        configuration: ModelConfiguration
+    ) -> [Chat.Message] {
+        var chat: [Chat.Message] = [
+            Chat.Message(role: .system, content: systemPrompt)
+        ]
+
+        for message in thread.sortedMessages {
+            let role: Chat.Message.Role =
+                switch message.role {
+                case .assistant:
+                    .assistant
+                case .user:
+                    .user
+                case .system:
+                    .system
+                }
+
+            let formattedContent = configuration.formatForTokenizer(message.content)
+            let images = message.imageAttachments.map { UserInput.Image.url($0) }
+
+            chat.append(
+                Chat.Message(
+                    role: role,
+                    content: formattedContent,
+                    images: images,
+                    videos: []))
+        }
+
+        return chat
     }
 }

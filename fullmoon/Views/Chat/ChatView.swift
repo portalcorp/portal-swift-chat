@@ -43,7 +43,12 @@ struct ChatView: View {
     @State private var showMissingModelAlert = false
 
     var isPromptEmpty: Bool {
-        prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        #if os(iOS)
+            return trimmed && imageAttachments.isEmpty && fileAttachments.isEmpty
+        #else
+            return trimmed
+        #endif
     }
 
     let platformBackgroundColor: Color = {
@@ -270,9 +275,19 @@ struct ChatView: View {
                 generatingThreadID = currentThread.id
                 Task {
                     let message = prompt
+                    #if os(iOS)
+                        let savedImageURLs = persistImageAttachments(imageAttachments)
+                        imageAttachments.removeAll()
+                        fileAttachments.removeAll()
+                    #else
+                        let savedImageURLs: [URL] = []
+                    #endif
                     prompt = ""
                     appManager.playHaptic()
-                    sendMessage(Message(role: .user, content: message, thread: currentThread))
+                    sendMessage(
+                        Message(
+                            role: .user, content: message, thread: currentThread,
+                            imageAttachments: savedImageURLs))
                     isPromptFocused = true
                     let output = await llm.generate(
                         modelName: activeModel, thread: currentThread,
@@ -293,6 +308,59 @@ struct ChatView: View {
         try? modelContext.save()
     }
 
+    #if os(iOS)
+        private func persistImageAttachments(_ attachments: [ImageAttachment]) -> [URL] {
+            guard !attachments.isEmpty else { return [] }
+
+            let fileManager = FileManager.default
+            guard
+                let baseDirectory = fileManager.urls(
+                    for: .applicationSupportDirectory, in: .userDomainMask
+                ).first
+            else { return [] }
+
+            let attachmentsDirectory = baseDirectory.appendingPathComponent(
+                "ChatAttachments", isDirectory: true)
+
+            if !fileManager.fileExists(atPath: attachmentsDirectory.path) {
+                do {
+                    try fileManager.createDirectory(
+                        at: attachmentsDirectory, withIntermediateDirectories: true)
+                } catch {
+                    print("Failed to create attachments directory: \(error.localizedDescription)")
+                    return []
+                }
+            }
+
+            return attachments.compactMap { attachment in
+                let image = attachment.image
+
+                if let jpegData = image.jpegData(compressionQuality: 0.9) {
+                    let url = attachmentsDirectory.appendingPathComponent(
+                        UUID().uuidString, conformingTo: .jpeg)
+                    do {
+                        try jpegData.write(to: url)
+                        return url
+                    } catch {
+                        print("Failed to save JPEG attachment: \(error.localizedDescription)")
+                    }
+                } else if let pngData = image.pngData() {
+                    let url = attachmentsDirectory.appendingPathComponent(
+                        UUID().uuidString, conformingTo: .png)
+                    do {
+                        try pngData.write(to: url)
+                        return url
+                    } catch {
+                        print("Failed to save PNG attachment: \(error.localizedDescription)")
+                    }
+                }
+
+                return nil
+            }
+        }
+    #else
+        private func persistImageAttachments(_ attachments: [ImageAttachment]) -> [URL] { [] }
+    #endif
 }
 
 #Preview {

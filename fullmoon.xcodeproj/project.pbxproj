@@ -11,6 +11,7 @@
 		860F26A42CBC31D6004E8D40 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 860F26A32CBC31D6004E8D40 /* MarkdownUI */; };
 		869B97622D0DD46B0078DF5A /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 869B97612D0DD46B0078DF5A /* MLXLMCommon */; };
 		869B97642D0DD4D80078DF5A /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 869B97632D0DD4D80078DF5A /* MLXLLM */; };
+		869B97662D0DD50E0078DF5A /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 869B97652D0DD50E0078DF5A /* MLXVLM */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				869B97662D0DD50E0078DF5A /* MLXVLM in Frameworks */,
 				869B97642D0DD4D80078DF5A /* MLXLLM in Frameworks */,
 				869B97622D0DD46B0078DF5A /* MLXLMCommon in Frameworks */,
 				25F645532D4E7A6F0049EFBE /* Transformers in Frameworks */,
@@ -100,6 +102,7 @@
 				860F26A32CBC31D6004E8D40 /* MarkdownUI */,
 				869B97612D0DD46B0078DF5A /* MLXLMCommon */,
 				869B97632D0DD4D80078DF5A /* MLXLLM */,
+				869B97652D0DD50E0078DF5A /* MLXVLM */,
 				25F645522D4E7A6F0049EFBE /* Transformers */,
 			);
 			productName = fullmoon;
@@ -446,6 +449,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 860E9CE22CB0564600C5BB52 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
 			productName = MLXLLM;
+		};
+		869B97652D0DD50E0078DF5A /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 860E9CE22CB0564600C5BB52 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXVLM;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
