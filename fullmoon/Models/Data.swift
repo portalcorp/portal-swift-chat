@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import MLXLMCommon
 
 class AppManager: ObservableObject {
     @AppStorage("systemPrompt") var systemPrompt = "you are a helpful assistant"
@@ -89,7 +90,15 @@ class AppManager: ObservableObject {
             installedModels.append(model)
         }
     }
-    
+
+    func removeInstalledModel(_ model: String) {
+        removeModelFromDisk(model)
+        installedModels.removeAll { $0 == model }
+        if currentModelName == model {
+            currentModelName = installedModels.first
+        }
+    }
+
     func modelDisplayName(_ modelName: String) -> String {
         return modelName.replacingOccurrences(of: "mlx-community/", with: "").lowercased()
     }
@@ -129,6 +138,33 @@ class AppManager: ObservableObject {
         default:
             return "moonphase.new.moon" // New Moon (fallback)
         }
+    }
+}
+
+private extension AppManager {
+    func removeModelFromDisk(_ model: String) {
+        guard let directory = modelDirectory(for: model) else { return }
+        do {
+            if FileManager.default.fileExists(atPath: directory.path) {
+                try FileManager.default.removeItem(at: directory)
+            }
+        } catch {
+            print("Failed to remove model from disk: \(error.localizedDescription)")
+        }
+    }
+
+    func modelDirectory(for model: String) -> URL? {
+        if let configuration = ModelConfiguration.getModelByName(model) {
+            return configuration.modelDirectory(hub: defaultHubApi)
+        }
+
+        guard let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+
+        return cachesDirectory
+            .appendingPathComponent("models", isDirectory: true)
+            .appendingPathComponent(model, isDirectory: true)
     }
 }
 

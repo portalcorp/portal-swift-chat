@@ -159,4 +159,17 @@ class LLMEvaluator {
         running = false
         return output
     }
+
+    func unloadModel() {
+        running = false
+        cancelled = false
+        isThinking = false
+        output = ""
+        modelInfo = ""
+        stat = ""
+        progress = 0.0
+        thinkingTime = nil
+        startTime = nil
+        loadState = .idle
+    }
 }

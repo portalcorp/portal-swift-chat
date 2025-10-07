@@ -25,6 +25,7 @@ struct ChatView: View {
     @State var prompt = ""
     @FocusState.Binding var isPromptFocused: Bool
     @Binding var showChats: Bool
+    @Binding var showOnboarding: Bool
 
     @Environment(\.requestReview) private var requestReview
 
@@ -37,6 +38,8 @@ struct ChatView: View {
         @State var fileAttachments: [FileAttachment] = []
         @State var activeAttachmentSheet: AttachmentSheet?
     #endif
+
+    @State private var showMissingModelAlert = false
 
     var isPromptEmpty: Bool {
         prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -100,6 +103,11 @@ struct ChatView: View {
     var body: some View {
         withAttachmentMenu {
             chatNavigationContent
+        }
+        .alert("no models installed", isPresented: $showMissingModelAlert) {
+            Button("ok", role: .cancel) {}
+        } message: {
+            Text("No models are installed. Please install one to start chatting.")
         }
     }
 
@@ -220,6 +228,12 @@ struct ChatView: View {
     }
 
     func generate() {
+        guard !appManager.installedModels.isEmpty, let activeModel = appManager.currentModelName, !activeModel.isEmpty else {
+            showOnboarding = true
+            showMissingModelAlert = true
+            return
+        }
+
         if !isPromptEmpty {
             if currentThread == nil {
                 let newThread = Thread()
@@ -236,16 +250,14 @@ struct ChatView: View {
                     appManager.playHaptic()
                     sendMessage(Message(role: .user, content: message, thread: currentThread))
                     isPromptFocused = true
-                    if let modelName = appManager.currentModelName {
-                        let output = await llm.generate(
-                            modelName: modelName, thread: currentThread,
-                            systemPrompt: appManager.systemPrompt)
-                        sendMessage(
-                            Message(
-                                role: .assistant, content: output, thread: currentThread,
-                                generatingTime: llm.thinkingTime))
-                        generatingThreadID = nil
-                    }
+                    let output = await llm.generate(
+                        modelName: activeModel, thread: currentThread,
+                        systemPrompt: appManager.systemPrompt)
+                    sendMessage(
+                        Message(
+                            role: .assistant, content: output, thread: currentThread,
+                            generatingTime: llm.thinkingTime))
+                    generatingThreadID = nil
                 }
             }
         }
@@ -263,5 +275,5 @@ struct ChatView: View {
     @FocusState var isPromptFocused: Bool
     ChatView(
         currentThread: .constant(nil), isPromptFocused: $isPromptFocused,
-        showChats: .constant(false))
+        showChats: .constant(false), showOnboarding: .constant(false))
 }
