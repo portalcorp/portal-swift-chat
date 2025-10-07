@@ -9,16 +9,16 @@ struct AttachmentMenuView<Content: View>: View {
     @State private var activeActionID: String?
 
     private var showContentAnimation: Animation {
-        .snappy(duration: 0.20, extraBounce: 0.05)
+        .easeOut(duration: 0.22)
     }
 
     private var hideContentAnimation: Animation {
-        .snappy(duration: 0.22, extraBounce: 0.05)
+        .easeIn(duration: 0.18)
     }
 
     private func labelAnimation(isShowing: Bool) -> Animation {
         if isShowing {
-            return .easeOut(duration: 0.2).delay(0.02)
+            return .easeOut(duration: 0.18).delay(0.08)
         } else {
             return .easeIn(duration: 0.08)
         }

@@ -71,15 +71,15 @@ extension ModelConfiguration {
         id: "mlx-community/Qwen3-4B-Instruct-2507-8bit"
     )
 
-    public static let mlx_community_Qwen3_8B_4bit_DWQ_053125 = ModelConfiguration(
+    public static let Qwen3_8B_4bit_DWQ_053125 = ModelConfiguration(
         id: "mlx-community/Qwen3-8B-4bit-DWQ-053125"
     )
 
-    public static let mlx_community_Qwen3_1_7B_bf16 = ModelConfiguration(
+    public static let Qwen3_1_7B_bf16 = ModelConfiguration(
         id: "mlx-community/Qwen3-1.7B-bf16"
     )
 
-    public static let mlx_community_Jan_v1_4B_8bit = ModelConfiguration(
+    public static let Jan_v1_4B_8bit = ModelConfiguration(
         id: "mlx-community/Jan-v1-4B-8bit"
     )
 
@@ -105,9 +105,9 @@ extension ModelConfiguration {
         granite_4_0_micro_8bit,
         jan_v1_edge_bf16,
         qwen_3_4b_instruct_8bit,
-        mlx_community_Qwen3_8B_4bit_DWQ_053125,
-        mlx_community_Qwen3_1_7B_bf16,
-        mlx_community_Jan_v1_4B_8bit,
+        Qwen3_8B_4bit_DWQ_053125,
+        Qwen3_1_7B_bf16,
+        Jan_v1_4B_8bit,
     ]
 
     public static var defaultModel: ModelConfiguration {
@@ -144,20 +144,20 @@ extension ModelConfiguration {
         switch self {
         case .llama_3_2_1b_4bit: return 0.7
         case .llama_3_2_3b_4bit: return 1.8
-        case .deepseek_r1_distill_qwen_1_5b_4bit: return 1.0
-        case .deepseek_r1_distill_qwen_1_5b_8bit: return 1.9
+        // case .deepseek_r1_distill_qwen_1_5b_4bit: return 1.0
+        // case .deepseek_r1_distill_qwen_1_5b_8bit: return 1.9
         case .qwen_3_4b_4bit: return 2.3
-        case .qwen_3_8b_4bit: return 4.7
+        // case .qwen_3_8b_4bit: return 4.7
         case .qwen_2_5_vl_3b_instruct_4bit: return 3.09
-        case .qwen_2_vl_2b_instruct_4bit: return 1.26
+        // case .qwen_2_vl_2b_instruct_4bit: return 1.26
         case .smol_vlm_instruct_4bit: return 1.46
         case .gemma3_4B_qat_4bit: return 3.03
         case .granite_4_0_micro_8bit: return 3.63
         case .jan_v1_edge_bf16: return 3.46
         case .qwen_3_4b_instruct_8bit: return 4.29
-        case .mlx_community_Qwen3_8B_4bit_DWQ_053125: return 4.7
-        case .mlx_community_Qwen3_1_7B_bf16: return 3.46
-        case .mlx_community_Jan_v1_4B_8bit: return 4.29
+        case .Qwen3_8B_4bit_DWQ_053125: return 4.7
+        case .Qwen3_1_7B_bf16: return 3.46
+        case .Jan_v1_4B_8bit: return 4.29
         default: return nil
         }
     }
