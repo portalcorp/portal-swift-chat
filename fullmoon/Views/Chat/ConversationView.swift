@@ -122,23 +122,17 @@ struct MessageView: View {
                     }
                 }
                 .padding(.trailing, 48)
+            } else if message.role == .user {
+                VStack(alignment: .trailing, spacing: 12) {
+                    if !message.imageAttachments.isEmpty {
+                        attachmentsGallery(for: message.imageAttachments)
+                    }
+
+                    messageBubble(message.content, leadingPadding: 0)
+                }
+                .padding(.leading, 48)
             } else {
-                Markdown(message.content)
-                    .textSelection(.enabled)
-                #if os(iOS) || os(visionOS)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                #else
-                    .padding(.horizontal, 16 * 2 / 3)
-                    .padding(.vertical, 8)
-                #endif
-                    .background(platformBackgroundColor)
-                #if os(iOS) || os(visionOS)
-                    .mask(RoundedRectangle(cornerRadius: 24))
-                #elseif os(macOS)
-                    .mask(RoundedRectangle(cornerRadius: 16))
-                #endif
-                    .padding(.leading, 48)
+                messageBubble(message.content)
             }
 
             if message.role == .assistant { Spacer() }
@@ -158,6 +152,66 @@ struct MessageView: View {
                 llm.isThinking = isThinking
             }
         }
+    }
+
+    @ViewBuilder
+    private func messageBubble(_ text: String, leadingPadding: CGFloat = 48) -> some View {
+        Markdown(text)
+            .textSelection(.enabled)
+        #if os(iOS) || os(visionOS)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        #else
+            .padding(.horizontal, 16 * 2 / 3)
+            .padding(.vertical, 8)
+        #endif
+            .background(platformBackgroundColor)
+        #if os(iOS) || os(visionOS)
+            .mask(RoundedRectangle(cornerRadius: 24))
+        #elseif os(macOS)
+            .mask(RoundedRectangle(cornerRadius: 16))
+        #endif
+            .padding(.leading, leadingPadding)
+    }
+
+    @ViewBuilder
+    private func attachmentsGallery(for urls: [URL]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(urls, id: \.self) { url in
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .fill(.ultraThinMaterial)
+                                ProgressView()
+                            }
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        case .failure:
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(.secondary.opacity(0.2))
+                                .overlay {
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 24, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .frame(width: 88, height: 88)
+                }
+            }
+            .padding(.leading, 4)
+            .padding(.trailing, 4)
+        }
+        .scrollIndicators(.hidden)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     let platformBackgroundColor: Color = {

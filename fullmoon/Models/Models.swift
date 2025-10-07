@@ -7,6 +7,7 @@
 
 import Foundation
 import MLXLMCommon
+import MLXVLM
 
 public extension ModelConfiguration {
     enum ModelType {
@@ -20,6 +21,13 @@ public extension ModelConfiguration {
         case .qwen_3_4b_4bit: .reasoning
         case .qwen_3_8b_4bit: .reasoning
         default: .regular
+        }
+    }
+
+    var isVisionModel: Bool {
+        switch self {
+        case .qwen_2_5_vl_3b_instruct_4bit, .qwen_2_vl_2b_instruct_4bit, .smol_vlm_instruct_4bit: true
+        default: false
         }
     }
 }
@@ -49,6 +57,12 @@ extension ModelConfiguration {
         id: "mlx-community/Qwen3-8B-4bit"
     )
 
+    public static let qwen_2_5_vl_3b_instruct_4bit = VLMRegistry.qwen2_5VL3BInstruct4Bit
+
+    public static let qwen_2_vl_2b_instruct_4bit = VLMRegistry.qwen2VL2BInstruct4Bit
+
+    public static let smol_vlm_instruct_4bit = VLMRegistry.smolvlminstruct4bit
+
     public static var availableModels: [ModelConfiguration] = [
         llama_3_2_1b_4bit,
         llama_3_2_3b_4bit,
@@ -56,6 +70,9 @@ extension ModelConfiguration {
         deepseek_r1_distill_qwen_1_5b_8bit,
         qwen_3_4b_4bit,
         qwen_3_8b_4bit,
+        qwen_2_5_vl_3b_instruct_4bit,
+        qwen_2_vl_2b_instruct_4bit,
+        smol_vlm_instruct_4bit,
     ]
 
     public static var defaultModel: ModelConfiguration {
@@ -70,28 +87,6 @@ extension ModelConfiguration {
         }
     }
 
-    func getPromptHistory(thread: Thread, systemPrompt: String) -> [[String: String]] {
-        var history: [[String: String]] = []
-
-        // system prompt
-        history.append([
-            "role": "system",
-            "content": systemPrompt,
-        ])
-
-        // messages
-        for message in thread.sortedMessages {
-            let role = message.role.rawValue
-            history.append([
-                "role": role,
-                "content": formatForTokenizer(message.content), // remove reasoning part
-            ])
-        }
-
-        return history
-    }
-
-    // TODO: Remove this function when Jinja gets updated
     func formatForTokenizer(_ message: String) -> String {
         if modelType == .reasoning {
             let pattern = "<think>.*?(</think>|$)"
@@ -116,6 +111,9 @@ extension ModelConfiguration {
         case .deepseek_r1_distill_qwen_1_5b_8bit: return 1.9
         case .qwen_3_4b_4bit: return 2.3
         case .qwen_3_8b_4bit: return 4.7
+        case .qwen_2_5_vl_3b_instruct_4bit: return 3.09
+        case .qwen_2_vl_2b_instruct_4bit: return 1.26
+        case .smol_vlm_instruct_4bit: return 1.46
         default: return nil
         }
     }
