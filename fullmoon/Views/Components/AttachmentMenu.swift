@@ -20,7 +20,7 @@ struct AttachmentMenuView<Content: View>: View {
         if isShowing {
             return .easeOut(duration: 0.2).delay(0.02)
         } else {
-            return .easeIn(duration: 0.6)
+            return .easeIn(duration: 0.08)
         }
     }
 
