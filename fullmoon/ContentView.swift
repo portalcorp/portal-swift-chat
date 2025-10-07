@@ -27,11 +27,21 @@ struct ContentView: View {
                     .navigationSplitViewColumnWidth(min: 240, ideal: 240, max: 320)
                     #endif
                 } detail: {
-                    ChatView(currentThread: $currentThread, isPromptFocused: $isPromptFocused, showChats: $showChats)
+                    ChatView(
+                        currentThread: $currentThread,
+                        isPromptFocused: $isPromptFocused,
+                        showChats: $showChats,
+                        showOnboarding: $showOnboarding
+                    )
                 }
             } else {
                 // iPhone
-                ChatView(currentThread: $currentThread, isPromptFocused: $isPromptFocused, showChats: $showChats)
+                ChatView(
+                    currentThread: $currentThread,
+                    isPromptFocused: $isPromptFocused,
+                    showChats: $showChats,
+                    showOnboarding: $showOnboarding
+                )
             }
         }
         .environmentObject(appManager)
