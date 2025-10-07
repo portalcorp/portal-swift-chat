@@ -87,6 +87,10 @@ struct ChatView: View {
         conversationTitle == nil ? nil : currentModelDisplayName
     }
 
+    var isUsingDefaultNavigationTitle: Bool {
+        conversationTitle == nil
+    }
+
     func startNewChat() {
         currentThread = nil
         isPromptFocused = true
@@ -212,15 +216,34 @@ struct ChatView: View {
             showModelPicker = true
         } label: {
             VStack(spacing: 2) {
-                Text(navigationPrimaryTitle)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                if let subtitle = navigationSubtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(navigationPrimaryTitle)
+                        .font(.headline)
+                        .foregroundStyle(
+                            isUsingDefaultNavigationTitle ? .secondary : .primary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
+                    if isUsingDefaultNavigationTitle {
+                        Image(systemName: "chevron.down")
+                            .rotationEffect(.degrees(270))
+                            .font(.caption2)
+                            .imageScale(.small)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if let subtitle = navigationSubtitle, !subtitle.isEmpty {
+                    HStack(spacing: 4) {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Image(systemName: "chevron.down")
+                            .rotationEffect(.degrees(270))
+                            .font(.caption2)
+                            .imageScale(.small)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .contentShape(Rectangle())
