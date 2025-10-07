@@ -201,11 +201,6 @@ extension ChatView {
                 presentDocumentPicker()
             }
         #endif
-            AttachmentMenuAction(symbolImage: "chevron.up", text: "Choose Model") {
-                appManager.playHaptic()
-                attachmentMenuConfig.showMenu = false
-                showModelPicker = true
-            }
         }
     #if os(iOS)
         .sheet(item: $activeAttachmentSheet) { sheet in

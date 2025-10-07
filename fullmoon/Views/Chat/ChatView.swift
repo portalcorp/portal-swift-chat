@@ -58,14 +58,29 @@ struct ChatView: View {
         }
     #endif
 
-    var chatTitle: String {
-        if let currentThread = currentThread {
-            if let firstMessage = currentThread.sortedMessages.first {
-                return firstMessage.content
-            }
-        }
+    var conversationTitle: String? {
+        guard
+            let currentThread,
+            let firstMessage = currentThread.sortedMessages.first
+        else { return nil }
 
-        return "chat"
+        return firstMessage.content
+    }
+
+    var currentModelDisplayName: String {
+        let rawName = appManager.currentModelName ?? "chat"
+        if rawName.hasPrefix("mlx-community/") {
+            return String(rawName.dropFirst("mlx-community/".count))
+        }
+        return rawName
+    }
+
+    var navigationPrimaryTitle: String {
+        conversationTitle ?? currentModelDisplayName
+    }
+
+    var navigationSubtitle: String? {
+        conversationTitle == nil ? nil : currentModelDisplayName
     }
 
     func startNewChat() {
@@ -113,7 +128,7 @@ struct ChatView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
         }
-        .navigationTitle(chatTitle)
+        .navigationTitle(navigationPrimaryTitle)
         #if os(iOS) || os(visionOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -148,6 +163,9 @@ struct ChatView: View {
         }
         .toolbar {
             #if os(iOS) || os(visionOS)
+                ToolbarItem(placement: .principal) {
+                    navigationTitleToolbarContent
+                }
                 if appManager.userInterfaceIdiom == .phone {
                     ToolbarItem(placement: .topBarLeading) {
                         Button(action: {
@@ -166,6 +184,9 @@ struct ChatView: View {
                     .keyboardShortcut("N", modifiers: [.command])
                 }
             #elseif os(macOS)
+                ToolbarItem(placement: .principal) {
+                    navigationTitleToolbarContent
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: startNewChat) {
                         Label("new", systemImage: "plus")
@@ -174,6 +195,28 @@ struct ChatView: View {
                 }
             #endif
         }
+    }
+
+    private var navigationTitleToolbarContent: some View {
+        Button {
+            appManager.playHaptic()
+            showModelPicker = true
+        } label: {
+            VStack(spacing: 2) {
+                Text(navigationPrimaryTitle)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                if let subtitle = navigationSubtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     func generate() {
