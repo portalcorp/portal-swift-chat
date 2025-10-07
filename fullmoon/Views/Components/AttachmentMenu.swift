@@ -178,3 +178,58 @@ struct AttachmentMenuActionBuilder {
         components
     }
 }
+
+extension ChatView {
+    @ViewBuilder
+    func withAttachmentMenu<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        AttachmentMenuView(config: $attachmentMenuConfig) {
+            content()
+        } actions: {
+        #if os(iOS)
+            AttachmentMenuAction(symbolImage: "camera.fill", text: "Camera") {
+                attachmentMenuConfig.showMenu = false
+                presentCamera()
+            }
+
+            AttachmentMenuAction(symbolImage: "photo.on.rectangle.fill", text: "Photos") {
+                attachmentMenuConfig.showMenu = false
+                presentPhotoLibrary()
+            }
+
+            AttachmentMenuAction(symbolImage: "doc", text: "Files") {
+                attachmentMenuConfig.showMenu = false
+                presentDocumentPicker()
+            }
+        #endif
+            AttachmentMenuAction(symbolImage: "chevron.up", text: "Choose Model") {
+                appManager.playHaptic()
+                attachmentMenuConfig.showMenu = false
+                showModelPicker = true
+            }
+        }
+    #if os(iOS)
+        .sheet(item: $activeAttachmentSheet) { sheet in
+            switch sheet {
+            case .camera:
+                CameraPicker { image in
+                    handlePickedImage(image)
+                }
+                .ignoresSafeArea()
+
+            case .photos:
+                PhotoLibraryPicker(selectionLimit: 1) { image in
+                    handlePickedImage(image)
+                }
+                .ignoresSafeArea()
+
+            case .files:
+                DocumentPicker { urls in
+                    handlePickedFiles(urls)
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .animation(.smooth(duration: 0.25, extraBounce: 0), value: hasAttachmentPreviews)
+    #endif
+    }
+}
