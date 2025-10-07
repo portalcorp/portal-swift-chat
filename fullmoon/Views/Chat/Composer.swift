@@ -24,7 +24,7 @@ extension ChatView {
 
     private var chatInput: some View {
         HStack(alignment: .bottom, spacing: 0) {
-            TextField("message", text: $prompt, axis: .vertical)
+            TextField("ask anything", text: $prompt, axis: .vertical)
                 .focused($isPromptFocused)
                 .textFieldStyle(.plain)
             #if os(iOS) || os(visionOS)
@@ -65,6 +65,21 @@ extension ChatView {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.white.opacity(0.25))
         }
+        #if os(iOS)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                .onEnded { value in
+                    let verticalTranslation = value.translation.height
+                    let threshold: CGFloat = 20
+
+                    if verticalTranslation > threshold, isPromptFocused {
+                        isPromptFocused = false
+                    } else if verticalTranslation < -threshold, !isPromptFocused {
+                        isPromptFocused = true
+                    }
+                }
+        )
+        #endif
         #elseif os(macOS)
         .background(
             RoundedRectangle(cornerRadius: 16)
