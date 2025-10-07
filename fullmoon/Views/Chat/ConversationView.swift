@@ -7,6 +7,11 @@
 
 import MarkdownUI
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 extension TimeInterval {
     var formatted: String {
@@ -176,42 +181,118 @@ struct MessageView: View {
 
     @ViewBuilder
     private func attachmentsGallery(for urls: [URL]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(urls, id: \.self) { url in
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(.ultraThinMaterial)
-                                ProgressView()
-                            }
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        case .failure:
+        if urls.count <= 2 {
+            attachmentsRow(for: urls)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                attachmentsRow(for: urls)
+            }
+            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func attachmentsRow(for urls: [URL]) -> some View {
+        HStack(spacing: 12) {
+            ForEach(urls, id: \.self) { url in
+                attachmentTile(for: url)
+            }
+        }
+        .padding(.leading, 4)
+        .padding(.trailing, 4)
+    }
+
+    private func attachmentTile(for url: URL) -> some View {
+        Group {
+            if let localImage = loadLocalImage(at: url) {
+                localImage
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            } else {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        ZStack {
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(.secondary.opacity(0.2))
-                                .overlay {
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 24, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                }
-                        @unknown default:
-                            EmptyView()
+                                .fill(.ultraThinMaterial)
+                            ProgressView()
                         }
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    case .failure:
+                        placeholderTile
+                    @unknown default:
+                        EmptyView()
                     }
-                    .frame(width: 88, height: 88)
                 }
             }
-            .padding(.leading, 4)
-            .padding(.trailing, 4)
         }
-        .scrollIndicators(.hidden)
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .frame(width: 88, height: 88)
+    }
+
+    private var placeholderTile: some View {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(.secondary.opacity(0.2))
+            .overlay {
+                Image(systemName: "photo")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+    }
+
+    private func loadLocalImage(at url: URL) -> Image? {
+        guard url.isFileURL, let resolvedURL = resolveAttachmentURL(from: url) else { return nil }
+
+        #if canImport(UIKit)
+        if
+            let data = try? Data(contentsOf: resolvedURL, options: [.mappedIfSafe]),
+            let uiImage = UIImage(data: data)
+        {
+            return Image(uiImage: uiImage)
+        }
+        #elseif canImport(AppKit)
+        if
+            let data = try? Data(contentsOf: resolvedURL, options: [.mappedIfSafe]),
+            let nsImage = NSImage(data: data)
+        {
+            return Image(nsImage: nsImage)
+        }
+        #endif
+
+        #if DEBUG
+        print("Failed to decode chat attachment: \(resolvedURL.path(percentEncoded: false))")
+        #endif
+        return nil
+    }
+
+    private func resolveAttachmentURL(from originalURL: URL) -> URL? {
+        let fileManager = FileManager.default
+        let path = originalURL.path(percentEncoded: false)
+
+        if fileManager.fileExists(atPath: path) {
+            return originalURL
+        }
+
+        guard let attachmentsDirectory else { return nil }
+        let fallbackURL = attachmentsDirectory.appendingPathComponent(originalURL.lastPathComponent)
+        if fileManager.fileExists(atPath: fallbackURL.path) {
+            return fallbackURL
+        }
+
+        #if DEBUG
+        print("Chat attachment missing from expected paths: \(originalURL.absoluteString)")
+        #endif
+        return nil
+    }
+
+    private var attachmentsDirectory: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("ChatAttachments", isDirectory: true)
     }
 
     let platformBackgroundColor: Color = {
