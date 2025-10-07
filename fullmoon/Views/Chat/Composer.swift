@@ -293,11 +293,17 @@ extension ChatView {
         }
     }
 
-    func handlePickedImage(_ image: UIImage) {
+    func handlePickedImages(_ images: [UIImage]) {
+        guard !images.isEmpty else { return }
         appManager.playHaptic()
+        let attachments = images.map { ImageAttachment(image: $0) }
         withAnimation(.spring(response: 0.25, dampingFraction: 1)) {
-            imageAttachments.append(ImageAttachment(image: image))
+            imageAttachments.append(contentsOf: attachments)
         }
+    }
+
+    func handlePickedImage(_ image: UIImage) {
+        handlePickedImages([image])
     }
 
     func removeImageAttachment(_ attachment: ImageAttachment) {

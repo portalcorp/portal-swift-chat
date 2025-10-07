@@ -49,7 +49,7 @@ struct CameraPicker: UIViewControllerRepresentable {
 
 struct PhotoLibraryPicker: UIViewControllerRepresentable {
     var selectionLimit: Int = 1
-    var onImage: (UIImage) -> Void
+    var onImages: ([UIImage]) -> Void
     @Environment(\.dismiss) private var dismiss
 
     func makeCoordinator() -> Coordinator {
@@ -82,15 +82,17 @@ struct PhotoLibraryPicker: UIViewControllerRepresentable {
             }
 
             Task {
+                var collectedImages: [UIImage] = []
                 for result in results where result.itemProvider.canLoadObject(ofClass: UIImage.self) {
                     if let image = try? await result.itemProvider.loadImage() {
-                        await MainActor.run {
-                            parent.onImage(image)
-                        }
+                        collectedImages.append(image)
                     }
                 }
 
                 await MainActor.run {
+                    if !collectedImages.isEmpty {
+                        parent.onImages(collectedImages)
+                    }
                     parent.dismiss()
                 }
             }

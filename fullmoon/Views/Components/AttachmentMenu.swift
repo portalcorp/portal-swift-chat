@@ -9,7 +9,7 @@ struct AttachmentMenuView<Content: View>: View {
     @State private var activeActionID: String?
 
     private var showContentAnimation: Animation {
-        .snappy(duration: 0.28, extraBounce: 0.08)
+        .snappy(duration: 0.20, extraBounce: 0.05)
     }
 
     private var hideContentAnimation: Animation {
@@ -20,7 +20,7 @@ struct AttachmentMenuView<Content: View>: View {
         if isShowing {
             return .easeOut(duration: 0.2).delay(0.02)
         } else {
-            return .easeIn(duration: 0.12)
+            return .easeIn(duration: 0.6)
         }
     }
 
@@ -247,8 +247,8 @@ extension ChatView {
                     .ignoresSafeArea()
 
                 case .photos:
-                    PhotoLibraryPicker(selectionLimit: 1) { image in
-                        handlePickedImage(image)
+                    PhotoLibraryPicker(selectionLimit: 0) { images in
+                        handlePickedImages(images)
                     }
                     .ignoresSafeArea()
 
