@@ -24,7 +24,20 @@ struct OnboardingDownloadingModelProgressView: View {
             Spacer()
             
             VStack(spacing: 16) {
-                MoonAnimationView(isDone: installed)
+                ZStack {
+                    PortalSceneView()
+                        .frame(width: 112, height: 112)
+                        .opacity(installed ? 0 : 1)
+
+                    Image(systemName: "checkmark.circle.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.green)
+                        .frame(width: 112, height: 112)
+                        .opacity(installed ? 1 : 0)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(!installed)
+                }
                 
                 VStack(spacing: 4) {
                     Text(installed ? "installed" : "installing")

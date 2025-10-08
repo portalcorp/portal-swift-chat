@@ -135,11 +135,9 @@ struct ChatView: View {
                     thread: currentThread, generatingThreadID: generatingThreadID)
             } else {
                 Spacer()
-                Image(systemName: appManager.getMoonPhaseIcon())
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 32)
-                    .foregroundStyle(.quaternary)
+                PortalSceneView()
+                    .frame(width: 164, height: 164)
+                    .accessibilityLabel("portal animation")
                 Spacer()
             }
         }
