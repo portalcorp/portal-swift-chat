@@ -30,6 +30,7 @@ extension TimeInterval {
 struct MessageView: View {
     @Environment(LLMEvaluator.self) var llm
     @State private var collapsed = true
+    private let collapseAnimation = Animation.easeInOut(duration: 0.35)
     let message: Message
 
     var isThinking: Bool {
@@ -54,15 +55,24 @@ struct MessageView: View {
     }
 
     var time: String {
-        if isThinking, llm.running, let elapsedTime = llm.elapsedTime {
-            if isThinking {
+        if isThinking {
+            if llm.running, let elapsedTime = llm.elapsedTime {
                 return "(\(elapsedTime.formatted))"
             }
-            if let thinkingTime = llm.thinkingTime {
-                return thinkingTime.formatted
+
+            if let duration = message.generatingTime ?? llm.thinkingTime {
+                return "(\(duration.formatted))"
             }
-        } else if let generatingTime = message.generatingTime {
-            return "\(generatingTime.formatted)"
+
+            return "(0s)"
+        }
+
+        if let duration = message.generatingTime {
+            return duration.formatted
+        }
+
+        if llm.running, let duration = llm.thinkingTime {
+            return duration.formatted
         }
 
         return "0s"
@@ -97,25 +107,20 @@ struct MessageView: View {
                             thinkingLabel
                             if !collapsed {
                                 if !thinking.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    HStack(spacing: 12) {
-                                        Capsule()
-                                            .frame(width: 2)
-                                            .padding(.vertical, 1)
-                                            .foregroundStyle(.fill)
-                                        Markdown(thinking)
-                                            .textSelection(.enabled)
-                                            .markdownTextStyle {
-                                                ForegroundColor(.secondary)
-                                            }
-                                    }
-                                    .padding(.leading, 5)
+                                    Markdown(thinking)
+                                        .textSelection(.enabled)
+                                        .markdownTextStyle {
+                                            ForegroundColor(.secondary)
+                                        }
+                                        .padding(.leading, 5)
+                                        .transition(.opacity)
                                 }
                             }
                         }
                         .contentShape(.rect)
                         .onTapGesture {
-                            collapsed.toggle()
-                            if isThinking {
+                            withAnimation(collapseAnimation) {
+                                collapsed.toggle()
                                 llm.collapsed = collapsed
                             }
                         }
@@ -144,7 +149,10 @@ struct MessageView: View {
         }
         .onAppear {
             if llm.running {
-                collapsed = false
+                withAnimation(collapseAnimation) {
+                    collapsed = false
+                    llm.collapsed = collapsed
+                }
             }
         }
         .onChange(of: llm.elapsedTime) {
@@ -152,9 +160,18 @@ struct MessageView: View {
                 llm.thinkingTime = llm.elapsedTime
             }
         }
-        .onChange(of: isThinking) {
+        .onChange(of: isThinking) { newValue in
+            if !newValue {
+                withAnimation(collapseAnimation) {
+                    collapsed = true
+                    llm.collapsed = collapsed
+                }
+            } else {
+                llm.collapsed = collapsed
+            }
+
             if llm.running {
-                llm.isThinking = isThinking
+                llm.isThinking = newValue
             }
         }
     }
