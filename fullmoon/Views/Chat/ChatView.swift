@@ -167,7 +167,7 @@ struct ChatView: View {
             #if os(iOS)
                 .presentationDragIndicator(.visible)
                 .if(appManager.userInterfaceIdiom == .phone) { view in
-                    view.presentationDetents([.fraction(0.4)])
+                    view.presentationDetents([.fraction(0.4), .large])
                 }
             #elseif os(macOS)
                 .toolbar {
