@@ -5,12 +5,14 @@
 //  Created by Jordan Singer on 10/5/24.
 //
 
+import MLXLMCommon
 import SwiftData
 import SwiftUI
 
 struct ChatsListView: View {
     @EnvironmentObject var appManager: AppManager
     @Environment(\.dismiss) var dismiss
+    @Environment(LLMEvaluator.self) var llm
     @Binding var currentThread: Thread?
     @FocusState.Binding var isPromptFocused: Bool
     @Environment(\.modelContext) var modelContext
@@ -38,7 +40,7 @@ struct ChatsListView: View {
                             .foregroundStyle(.primary)
                             .font(.headline)
 
-                            Text("\(thread.timestamp.formatted())")
+                            Text(threadMetadata(for: thread))
                                 .foregroundStyle(.secondary)
                                 .font(.subheadline)
                         }
@@ -162,6 +164,26 @@ struct ChatsListView: View {
         dismiss()
         #endif
         appManager.playHaptic()
+
+        if let modelName = thread?.modelName, !modelName.isEmpty,
+           appManager.currentModelName != modelName {
+            Task { @MainActor in
+                appManager.currentModelName = modelName
+                if let configuration = ModelConfiguration.getModelByName(modelName) {
+                    await llm.switchModel(configuration)
+                } else {
+                    _ = try? await llm.load(modelName: modelName)
+                }
+            }
+        }
+    }
+
+    private func threadMetadata(for thread: Thread) -> String {
+        if let modelName = thread.modelName, !modelName.isEmpty {
+            return "\(thread.timestamp.formatted()) · \(appManager.modelDisplayName(modelName))"
+        }
+
+        return thread.timestamp.formatted()
     }
 }
 

@@ -207,16 +207,18 @@ final class Thread {
     @Attribute(.unique) var id: UUID
     var title: String?
     var timestamp: Date
-    
+    var modelName: String?
+
     @Relationship var messages: [Message] = []
-    
+
     var sortedMessages: [Message] {
         return messages.sorted { $0.timestamp < $1.timestamp }
     }
-    
-    init() {
+
+    init(modelName: String? = nil) {
         self.id = UUID()
         self.timestamp = Date()
+        self.modelName = modelName
     }
 }
 
