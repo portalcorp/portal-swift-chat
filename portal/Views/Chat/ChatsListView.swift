@@ -43,6 +43,7 @@ struct ChatsListView: View {
                             Text(threadMetadata(for: thread))
                                 .foregroundStyle(.secondary)
                                 .font(.subheadline)
+                                .lineLimit(1)
                         }
                         #if os(macOS)
                             .swipeActions {
