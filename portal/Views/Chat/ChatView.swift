@@ -271,14 +271,16 @@ struct ChatView: View {
 
         if !isPromptEmpty {
             if currentThread == nil {
-                let newThread = Thread()
+                let newThread = Thread(modelName: activeModel)
                 currentThread = newThread
                 modelContext.insert(newThread)
-                try? modelContext.save()
             }
 
             if let currentThread = currentThread {
+                currentThread.modelName = activeModel
+                try? modelContext.save()
                 generatingThreadID = currentThread.id
+                let thread = currentThread
                 Task {
                     let message = prompt
                     #if os(iOS)
@@ -292,15 +294,15 @@ struct ChatView: View {
                     appManager.playHaptic()
                     sendMessage(
                         Message(
-                            role: .user, content: message, thread: currentThread,
+                            role: .user, content: message, thread: thread,
                             imageAttachments: savedImageURLs))
                     isPromptFocused = true
                     let output = await llm.generate(
-                        modelName: activeModel, thread: currentThread,
+                        modelName: activeModel, thread: thread,
                         systemPrompt: appManager.systemPrompt)
                     sendMessage(
                         Message(
-                            role: .assistant, content: output, thread: currentThread,
+                            role: .assistant, content: output, thread: thread,
                             generatingTime: llm.thinkingTime))
                     generatingThreadID = nil
                 }
