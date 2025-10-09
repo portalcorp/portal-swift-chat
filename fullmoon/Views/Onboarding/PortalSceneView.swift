@@ -21,17 +21,29 @@ final class PortalSceneController: ObservableObject {
     let scene: SCNScene
     let cameraNode: SCNNode
 
+    private let spinNode: SCNNode
+    private let yawNode: SCNNode
+    private let tiltNode: SCNNode
     private let modelNode: SCNNode
     @Published private(set) var isReady = false
-
     private var isUserInteracting = false
     private var spinDuration: TimeInterval = 8
     private var spinDirection: CGFloat = 1
+    private var targetPitch: Float = 0
+    private var targetRoll: Float = 0
+    private var targetSpinDuration: TimeInterval = 1.5
+    private let maximumTilt: Float = .pi / 2 // ±90° cap for sliders
 
     init() {
         scene = SCNScene()
+        spinNode = SCNNode()
+        yawNode = SCNNode()
+        tiltNode = SCNNode()
         modelNode = SCNNode()
-        scene.rootNode.addChildNode(modelNode)
+        scene.rootNode.addChildNode(spinNode)
+        spinNode.addChildNode(yawNode)
+        yawNode.addChildNode(tiltNode)
+        tiltNode.addChildNode(modelNode)
 
         scene.background.contents = PlatformColor.clear
 
@@ -44,40 +56,62 @@ final class PortalSceneController: ObservableObject {
 
     func startAnimation(reset: Bool = false) {
         guard !isUserInteracting else { return }
-        if !reset, modelNode.action(forKey: "spin") != nil { return }
-        modelNode.removeAction(forKey: "spin")
+        if !reset, spinNode.action(forKey: "spin") != nil { return }
+        spinNode.removeAction(forKey: "spin")
         let rotation = SCNAction.rotateBy(x: 0, y: CGFloat.pi * 2 * spinDirection, z: 0, duration: spinDuration)
-        modelNode.runAction(.repeatForever(rotation), forKey: "spin")
+        spinNode.runAction(.repeatForever(rotation), forKey: "spin")
     }
 
     func stopAnimation() {
-        modelNode.removeAction(forKey: "spin")
+        spinNode.removeAction(forKey: "spin")
     }
 
     func beginUserInteraction() {
         guard isReady, !isUserInteracting else { return }
         isUserInteracting = true
-        modelNode.removeAction(forKey: "spin")
+        spinNode.removeAction(forKey: "spin")
     }
 
     func applyUserRotation(delta: CGSize) {
         guard isReady else { return }
         let sensitivity: Float = 0.008
-        modelNode.eulerAngles.y += Float(delta.width) * sensitivity
-        var newPitch = modelNode.eulerAngles.x + Float(delta.height) * sensitivity
-        let maxPitch = Float.pi / 4
-        newPitch = max(-maxPitch, min(maxPitch, newPitch))
-        modelNode.eulerAngles.x = newPitch
+        yawNode.eulerAngles.y += Float(delta.width) * sensitivity
+        var newPitch = tiltNode.eulerAngles.x + Float(delta.height) * sensitivity
+        newPitch = max(-maximumTilt, min(maximumTilt, newPitch))
+        tiltNode.eulerAngles.x = newPitch
     }
 
     func endUserInteraction(predictedVelocity: CGSize) {
         guard isReady else { return }
         let velocity = predictedVelocity.width
-        let baseDuration: TimeInterval = 8
+        let baseDuration: TimeInterval = targetSpinDuration
         let speedAdjustment = Double(max(-0.6, min(0.6, velocity / 2000)))
-        spinDuration = max(3, min(12, baseDuration - (speedAdjustment * baseDuration)))
+        spinDuration = max(2, min(20, baseDuration - (speedAdjustment * baseDuration)))
         spinDirection = velocity < 0 ? -1 : 1
         isUserInteracting = false
+        startAnimation(reset: true)
+    }
+
+    func updatePitch(_ pitch: Float) {
+        targetPitch = max(-maximumTilt, min(maximumTilt, pitch))
+        guard isReady, !isUserInteracting else { return }
+        var angles = tiltNode.eulerAngles
+        angles.x = targetPitch
+        tiltNode.eulerAngles = angles
+    }
+
+    func updateRoll(_ roll: Float) {
+        targetRoll = roll
+        guard isReady, !isUserInteracting else { return }
+        var angles = tiltNode.eulerAngles
+        angles.z = roll
+        tiltNode.eulerAngles = angles
+    }
+
+    func updateSpinDuration(_ duration: TimeInterval) {
+        targetSpinDuration = max(2, min(20, duration))
+        spinDuration = targetSpinDuration
+        guard isReady, !isUserInteracting else { return }
         startAnimation(reset: true)
     }
 
@@ -100,7 +134,10 @@ final class PortalSceneController: ObservableObject {
 
         normalizeModel()
         applyDefaultMaterial(to: modelNode)
-        modelNode.eulerAngles = SCNVector3Zero
+        tiltNode.eulerAngles = SCNVector3(targetPitch, 0, targetRoll)
+        yawNode.eulerAngles = SCNVector3Zero
+        spinNode.eulerAngles = SCNVector3Zero
+        spinDuration = targetSpinDuration
         isReady = true
     }
 
@@ -211,6 +248,10 @@ final class PortalSceneController: ObservableObject {
 }
 
 struct PortalSceneView: View {
+    var pitch: Float? = nil
+    var roll: Float? = nil
+    var spinDuration: TimeInterval? = nil
+
     @StateObject private var controller = PortalSceneController()
     @State private var lastDragTranslation: CGSize = .zero
 
@@ -219,8 +260,23 @@ struct PortalSceneView: View {
             .opacity(controller.isReady ? 1 : 0)
             .contentShape(Rectangle())
             .gesture(dragGesture)
-            .onAppear { controller.startAnimation() }
+            .onAppear {
+                controller.startAnimation()
+                applyConfiguration()
+            }
             .onDisappear { controller.stopAnimation() }
+            .onChange(of: pitch) { newValue in
+                guard let newPitch = newValue else { return }
+                controller.updatePitch(newPitch)
+            }
+            .onChange(of: roll) { newValue in
+                guard let newRoll = newValue else { return }
+                controller.updateRoll(newRoll)
+            }
+            .onChange(of: spinDuration) { newValue in
+                guard let newDuration = newValue else { return }
+                controller.updateSpinDuration(newDuration)
+            }
     }
 
     private var dragGesture: some Gesture {
@@ -240,6 +296,18 @@ struct PortalSceneView: View {
                 controller.endUserInteraction(predictedVelocity: value.predictedEndTranslation)
                 lastDragTranslation = .zero
             }
+    }
+    
+    private func applyConfiguration() {
+        if let pitch {
+            controller.updatePitch(pitch)
+        }
+        if let roll {
+            controller.updateRoll(roll)
+        }
+        if let spinDuration {
+            controller.updateSpinDuration(spinDuration)
+        }
     }
 }
 

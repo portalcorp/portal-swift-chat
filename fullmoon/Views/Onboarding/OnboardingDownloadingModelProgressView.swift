@@ -25,7 +25,7 @@ struct OnboardingDownloadingModelProgressView: View {
             
             VStack(spacing: 16) {
                 ZStack {
-                    PortalSceneView()
+                    PortalSceneView(spinDuration: 1.5)
                         .frame(width: 112, height: 112)
                         .opacity(installed ? 0 : 1)
 
@@ -64,7 +64,7 @@ struct OnboardingDownloadingModelProgressView: View {
                         .frame(height: 40)
                         #endif
                         #if os(iOS)
-                        .foregroundStyle(.background)
+                        .foregroundStyle(.black)
                         #endif
                 }
                 .buttonStyle(.borderedProminent)

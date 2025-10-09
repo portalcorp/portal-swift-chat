@@ -41,6 +41,9 @@ struct ChatView: View {
     #endif
 
     @State private var showMissingModelAlert = false
+    private let portalPitch: Double = -Double.pi / 2
+    private let portalRoll: Double = -Double.pi / 180
+    private let portalSpinDuration: Double = 3
 
     var isPromptEmpty: Bool {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -135,9 +138,14 @@ struct ChatView: View {
                     thread: currentThread, generatingThreadID: generatingThreadID)
             } else {
                 Spacer()
-                PortalSceneView()
-                    .frame(width: 164, height: 164)
-                    .accessibilityLabel("portal animation")
+                PortalSceneView(
+                    pitch: Float(portalPitch),
+                    roll: Float(portalRoll),
+                    spinDuration: portalSpinDuration
+                )
+                .frame(width: 184, height: 184)
+                .opacity(0.25)
+                .accessibilityLabel("portal animation")
                 Spacer()
             }
         }
