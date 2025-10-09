@@ -40,7 +40,7 @@ struct ChatsListView: View {
                             .foregroundStyle(.primary)
                             .font(.headline)
 
-                            Text(threadMetadata(for: thread))
+                            threadMetadata(for: thread)
                                 .foregroundStyle(.secondary)
                                 .font(.subheadline)
                                 .lineLimit(1)
@@ -179,24 +179,21 @@ struct ChatsListView: View {
         }
     }
 
-    private func threadMetadata(for thread: Thread) -> String {
-        if let modelName = thread.modelName, !modelName.isEmpty {
-            let displayName = appManager.modelDisplayName(modelName)
-            let truncatedName = truncatedModelName(displayName)
-            return "\(thread.timestamp.formatted()) · \(truncatedName)"
+    private func threadMetadata(for thread: Thread) -> Text {
+        let timestampText = Text(thread.timestamp.formatted())
+
+        guard let modelName = thread.modelName, !modelName.isEmpty else {
+            return timestampText
         }
 
-        return thread.timestamp.formatted()
-    }
+        let displayName = appManager.modelDisplayName(modelName)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    private func truncatedModelName(_ name: String) -> String {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let maxLength = 24
-        guard trimmed.count > maxLength else { return trimmed }
+        guard !displayName.isEmpty else {
+            return timestampText
+        }
 
-        let endIndex = trimmed.index(trimmed.startIndex, offsetBy: maxLength)
-        let shortened = String(trimmed[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
-        return "\(shortened)…"
+        return timestampText + Text(" · \(displayName)")
     }
 }
 
