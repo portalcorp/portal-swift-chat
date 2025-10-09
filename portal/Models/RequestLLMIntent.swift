@@ -53,7 +53,8 @@ struct RequestLLMIntent: AppIntent {
 
         if let modelName = appManager.currentModelName {
             _ = try? await llm.load(modelName: modelName)
-            
+            thread.modelName = modelName
+
             let message = Message(role: .user, content: prompt, thread: thread)
             thread.messages.append(message)
             var output = await llm.generate(modelName: modelName, thread: thread, systemPrompt: appManager.systemPrompt + systemPrompt)

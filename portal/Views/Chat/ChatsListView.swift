@@ -5,12 +5,14 @@
 //  Created by Jordan Singer on 10/5/24.
 //
 
+import MLXLMCommon
 import SwiftData
 import SwiftUI
 
 struct ChatsListView: View {
     @EnvironmentObject var appManager: AppManager
     @Environment(\.dismiss) var dismiss
+    @Environment(LLMEvaluator.self) var llm
     @Binding var currentThread: Thread?
     @FocusState.Binding var isPromptFocused: Bool
     @Environment(\.modelContext) var modelContext
@@ -38,9 +40,10 @@ struct ChatsListView: View {
                             .foregroundStyle(.primary)
                             .font(.headline)
 
-                            Text("\(thread.timestamp.formatted())")
+                            Text(threadMetadata(for: thread))
                                 .foregroundStyle(.secondary)
                                 .font(.subheadline)
+                                .lineLimit(1)
                         }
                         #if os(macOS)
                             .swipeActions {
@@ -162,6 +165,38 @@ struct ChatsListView: View {
         dismiss()
         #endif
         appManager.playHaptic()
+
+        if let modelName = thread?.modelName, !modelName.isEmpty,
+           appManager.currentModelName != modelName {
+            Task { @MainActor in
+                appManager.currentModelName = modelName
+                if let configuration = ModelConfiguration.getModelByName(modelName) {
+                    await llm.switchModel(configuration)
+                } else {
+                    _ = try? await llm.load(modelName: modelName)
+                }
+            }
+        }
+    }
+
+    private func threadMetadata(for thread: Thread) -> String {
+        if let modelName = thread.modelName, !modelName.isEmpty {
+            let displayName = appManager.modelDisplayName(modelName)
+            let truncatedName = truncatedModelName(displayName)
+            return "\(thread.timestamp.formatted()) · \(truncatedName)"
+        }
+
+        return thread.timestamp.formatted()
+    }
+
+    private func truncatedModelName(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let maxLength = 24
+        guard trimmed.count > maxLength else { return trimmed }
+
+        let endIndex = trimmed.index(trimmed.startIndex, offsetBy: maxLength)
+        let shortened = String(trimmed[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(shortened)…"
     }
 }
 
