@@ -26,7 +26,8 @@ extension ModelConfiguration {
 
     public var isVisionModel: Bool {
         switch self {
-        case .qwen_2_5_vl_3b_instruct_4bit, .qwen_2_vl_2b_instruct_4bit, .smol_vlm_instruct_4bit,
+        case .qwen_2_5_vl_3b_instruct_4bit, .qwen_2_vl_2b_instruct_4bit,
+            .qwen_3_vl_4b_instruct_4bit, .qwen_3_vl_4b_instruct_8bit, .smol_vlm_instruct_4bit,
             .gemma3_4B_qat_4bit:
             true
         default: false
@@ -59,9 +60,9 @@ extension ModelConfiguration {
         id: "mlx-community/Qwen3-8B-4bit"
     )
 
-//    public static let granite_4_0_micro_8bit = ModelConfiguration(
-//        id: "mlx-community/granite-4.0-micro-8bit"
-//    )
+    //    public static let granite_4_0_micro_8bit = ModelConfiguration(
+    //        id: "mlx-community/granite-4.0-micro-8bit"
+    //    )
 
     public static let jan_v1_edge_bf16 = ModelConfiguration(
         id: "mlx-community/Jan-v1-edge-bf16"
@@ -87,6 +88,10 @@ extension ModelConfiguration {
 
     public static let qwen_2_vl_2b_instruct_4bit = VLMRegistry.qwen2VL2BInstruct4Bit
 
+    public static let qwen_3_vl_4b_instruct_4bit = VLMRegistry.qwen3VL4BInstruct4Bit
+
+    public static let qwen_3_vl_4b_instruct_8bit = VLMRegistry.qwen3VL4BInstruct8Bit
+
     public static let smol_vlm_instruct_4bit = VLMRegistry.smolvlminstruct4bit
 
     public static let gemma3_4B_qat_4bit = VLMRegistry.gemma3_4B_qat_4bit
@@ -100,9 +105,11 @@ extension ModelConfiguration {
         qwen_3_8b_4bit,
         qwen_2_5_vl_3b_instruct_4bit,
         qwen_2_vl_2b_instruct_4bit,
+        qwen_3_vl_4b_instruct_4bit,
+        qwen_3_vl_4b_instruct_8bit,
         smol_vlm_instruct_4bit,
         gemma3_4B_qat_4bit,
-//        granite_4_0_micro_8bit,
+        //        granite_4_0_micro_8bit,
         jan_v1_edge_bf16,
         qwen_3_4b_instruct_8bit,
         Qwen3_8B_4bit_DWQ_053125,
@@ -152,12 +159,14 @@ extension ModelConfiguration {
         // case .qwen_2_vl_2b_instruct_4bit: return 1.26
         case .smol_vlm_instruct_4bit: return 1.46
         case .gemma3_4B_qat_4bit: return 3.03
-//        case .granite_4_0_micro_8bit: return 3.63
+        //        case .granite_4_0_micro_8bit: return 3.63
         case .jan_v1_edge_bf16: return 3.46
         case .qwen_3_4b_instruct_8bit: return 4.29
         case .Qwen3_8B_4bit_DWQ_053125: return 4.7
         case .Qwen3_1_7B_bf16: return 3.46
         case .Jan_v1_4B_8bit: return 4.29
+        case .qwen_3_vl_4b_instruct_4bit: return 2.3
+        case .qwen_3_vl_4b_instruct_8bit: return 4.29
         default: return nil
         }
     }
