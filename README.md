@@ -3,6 +3,18 @@
 
 [portal](https://portal.app) is an iOS app to chat with local large language models that’s optimized for Apple silicon and works on iPhone, iPad, and Mac. your chat history is saved locally, you can customize the appearance of the app, and vision-capable models accept image inputs alongside text.
 
+## remote providers via tachikoma
+
+Portal bundles the [Tachikoma](https://github.com/steipete/Tachikoma) Swift AI SDK (vendored in `references/Tachikoma`) to unlock hosted model providers without touching the MLX local pipeline. You can now switch to:
+
+- OpenAI (GPT-4o, o-series, GPT-4.1 family)
+- Anthropic Claude (Opus, Sonnet, Haiku)
+- Google Gemini (2.0 Flash, 1.5 Pro)
+- xAI Grok
+- Groq, Mistral, and local REST hosts like Ollama
+
+Open the **Settings → Models** screen to pick a remote model, or jump directly into **Settings → Remote Config** to set every provider’s API key and optional base URL. Model Context Protocol (MCP) tools are supported through TachikomaMCP—enable the MCP client, point it at your server, and tools will automatically be bridged into the chat experience.
+
 ## supported models
 
 ## text

@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject var appManager: AppManager
     @Environment(\.modelContext) var modelContext
     @Environment(LLMEvaluator.self) var llm
+    @Environment(TachikomaService.self) var tachikoma
     @State var showOnboarding = false
     @State var showChats = false
     @State var currentThread: Thread?
@@ -47,13 +48,16 @@ struct ContentView: View {
         .environmentObject(appManager)
         .environment(llm)
         .task {
-            if appManager.installedModels.count == 0 {
-                showOnboarding.toggle()
+            if !appManager.hasSelectedModel {
+                showOnboarding = true
             } else {
                 isPromptFocused = true
-                // load the model
-                if let modelName = appManager.currentModelName {
+                if appManager.currentModelSource == .local,
+                   let modelName = appManager.currentModelName
+                {
                     _ = try? await llm.load(modelName: modelName)
+                } else {
+                    await tachikoma.reset()
                 }
             }
         }
@@ -80,7 +84,7 @@ struct ContentView: View {
         .sheet(isPresented: $showOnboarding, onDismiss: dismissOnboarding) {
             OnboardingView(showOnboarding: $showOnboarding)
                 .environment(llm)
-                .interactiveDismissDisabled(appManager.installedModels.count == 0)
+                .interactiveDismissDisabled(!appManager.hasUsableModelSelection)
             
         }
         #if !os(visionOS)

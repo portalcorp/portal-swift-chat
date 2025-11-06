@@ -5,12 +5,13 @@
 //  Created by Jordan Singer on 10/5/24.
 //
 
-import SwiftUI
 import MLXLMCommon
+import SwiftUI
 
 struct ModelsSettingsView: View {
     @EnvironmentObject var appManager: AppManager
     @Environment(LLMEvaluator.self) var llm
+    @Environment(TachikomaService.self) var tachikoma
     @State var showOnboardingInstallModelView = false
     @State private var modelPendingDeletion: String?
     @State private var showDeleteModelAlert = false
@@ -18,51 +19,76 @@ struct ModelsSettingsView: View {
     var body: some View {
         Form {
             Section(header: Text("installed")) {
-                ForEach(appManager.installedModels, id: \.self) { modelName in
-                    Button {
-                        Task {
-                            await switchModel(modelName)
-                        }
-                    } label: {
-                        Label {
-                            Text(appManager.modelDisplayName(modelName))
-                                .tint(.primary)
-                        } icon: {
-                            Image(systemName: appManager.currentModelName == modelName ? "checkmark.circle.fill" : "circle")
-                        }
-                    }
-                    #if os(iOS) || os(visionOS)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            scheduleModelDeletion(modelName)
+                if appManager.installedModels.isEmpty {
+                    Text("No downloaded models yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(appManager.installedModels, id: \.self) { modelName in
+                        Button {
+                            Task {
+                                await switchModel(modelName)
+                            }
                         } label: {
-                            Image(systemName: "trash")
+                            Label {
+                                Text(appManager.modelDisplayName(modelName))
+                                    .tint(.primary)
+                            } icon: {
+                                Image(
+                                    systemName: appManager.currentModelSource == .local &&
+                                        appManager.currentModelName == modelName
+                                        ? "checkmark.circle.fill" : "circle"
+                                )
+                            }
                         }
-                        .tint(.red)
-                    }
-                    #endif
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            scheduleModelDeletion(modelName)
-                        } label: {
-                            Label("delete", systemImage: "trash")
+                        #if os(iOS) || os(visionOS)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                scheduleModelDeletion(modelName)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .tint(.red)
                         }
-                        .tint(.red)
+                        #endif
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                scheduleModelDeletion(modelName)
+                            } label: {
+                                Label("delete", systemImage: "trash")
+                            }
+                            .tint(.red)
+                        }
+                        #if os(macOS)
+                        .buttonStyle(.borderless)
+                        #endif
                     }
-                    #if os(macOS)
-                    .buttonStyle(.borderless)
-                    #endif
                 }
             }
-            
-            Button {
-                showOnboardingInstallModelView.toggle()
-            } label: {
-                Label("install a model", systemImage: "arrow.down.circle.dotted")
+
+            ForEach(appManager.remoteModelSections) { section in
+                Section(header: Text(section.title)) {
+                    ForEach(section.models) { remoteModel in
+                        remoteModelButton(remoteModel)
+                    }
+                }
             }
-            #if os(macOS)
-            .buttonStyle(.borderless)
-            #endif
+
+            Section {
+                Button {
+                    showOnboardingInstallModelView.toggle()
+                } label: {
+                    Label("install a local model", systemImage: "arrow.down.circle.dotted")
+                }
+                #if os(macOS)
+                .buttonStyle(.borderless)
+                #endif
+            }
+
+            Section {
+                NavigationLink(destination: TachikomaSettingsView()) {
+                    Label("remote configuration", systemImage: "slider.horizontal.3")
+                }
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("models")
@@ -113,9 +139,54 @@ struct ModelsSettingsView: View {
         if let model = ModelConfiguration.availableModels.first(where: {
             $0.name == modelName
         }) {
+            appManager.currentModelSource = .local
             appManager.currentModelName = modelName
             appManager.playHaptic()
+            await tachikoma.reset()
             await llm.switchModel(model)
+        }
+    }
+
+    @ViewBuilder
+    private func remoteModelButton(_ model: TachikomaRemoteModel) -> some View {
+        let isSelected =
+            appManager.currentModelSource == .tachikoma &&
+            appManager.currentModelName == model.id
+        let missingKey = model.provider.requiresAPIKey && appManager.apiKey(for: model.provider) == nil
+
+        Button {
+            selectRemoteModel(model)
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(model.displayName)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Text(model.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if missingKey {
+                        Text("Add \(model.provider.displayName) API key in settings.")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                Spacer()
+            }
+        }
+        #if os(macOS)
+        .buttonStyle(.borderless)
+        #endif
+    }
+
+    private func selectRemoteModel(_ model: TachikomaRemoteModel) {
+        appManager.currentModelSource = .tachikoma
+        appManager.currentModelName = model.id
+        appManager.playHaptic()
+        Task {
+            await tachikoma.reset()
         }
     }
 

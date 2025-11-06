@@ -41,6 +41,7 @@ struct RequestLLMIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let llm = LLMEvaluator()
+        let tachikoma = TachikomaService()
         let appManager = AppManager()
         
         if prompt.isEmpty {
@@ -52,12 +53,29 @@ struct RequestLLMIntent: AppIntent {
         }
 
         if let modelName = appManager.currentModelName {
-            _ = try? await llm.load(modelName: modelName)
             thread.modelName = modelName
+            thread.modelSource = appManager.currentModelSource
 
             let message = Message(role: .user, content: prompt, thread: thread)
             thread.messages.append(message)
-            var output = await llm.generate(modelName: modelName, thread: thread, systemPrompt: appManager.systemPrompt + systemPrompt)
+            var output: String
+
+            switch appManager.currentModelSource {
+            case .local:
+                _ = try? await llm.load(modelName: modelName)
+                output = await llm.generate(
+                    modelName: modelName,
+                    thread: thread,
+                    systemPrompt: appManager.systemPrompt + systemPrompt
+                )
+            case .tachikoma:
+                output = await tachikoma.generate(
+                    modelIdentifier: modelName,
+                    thread: thread,
+                    systemPrompt: appManager.systemPrompt + systemPrompt,
+                    appManager: appManager
+                )
+            }
             
             let maxCharacters = maxCharacters ?? .max
             
@@ -79,7 +97,7 @@ struct RequestLLMIntent: AppIntent {
             return .result(value: output, dialog: "\(output)")
         }
         else {
-            let error = "no model is currently selected. open the app and select a model first."
+            let error = "no model is currently selected. open the app and select or configure a model first."
             return .result(value: error, dialog: "\(error)")
         }
     }

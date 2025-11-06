@@ -8,6 +8,13 @@
 import SwiftUI
 import SwiftData
 import MLXLMCommon
+import Tachikoma
+import TachikomaMCP
+
+enum ChatModelSource: String, CaseIterable, Codable {
+    case local
+    case tachikoma
+}
 
 class AppManager: ObservableObject {
     @AppStorage("systemPrompt") var systemPrompt = "you are a helpful assistant"
@@ -16,9 +23,31 @@ class AppManager: ObservableObject {
     @AppStorage("appFontSize") var appFontSize: AppFontSize = .medium
     @AppStorage("appFontWidth") var appFontWidth: AppFontWidth = .standard
     @AppStorage("currentModelName") var currentModelName: String?
+    @AppStorage("currentModelSource") private var currentModelSourceRaw: String = ChatModelSource.local.rawValue
     @AppStorage("shouldPlayHaptics") var shouldPlayHaptics = true
     @AppStorage("numberOfVisits") var numberOfVisits = 0
     @AppStorage("numberOfVisitsOfLastRequest") var numberOfVisitsOfLastRequest = 0
+    @AppStorage("tachikomaOpenAIAPIKey") var tachikomaOpenAIAPIKey = ""
+    @AppStorage("tachikomaAnthropicAPIKey") var tachikomaAnthropicAPIKey = ""
+    @AppStorage("tachikomaGoogleAPIKey") var tachikomaGoogleAPIKey = ""
+    @AppStorage("tachikomaGrokAPIKey") var tachikomaGrokAPIKey = ""
+    @AppStorage("tachikomaGroqAPIKey") var tachikomaGroqAPIKey = ""
+    @AppStorage("tachikomaMistralAPIKey") var tachikomaMistralAPIKey = ""
+    @AppStorage("tachikomaOllamaBaseURL") var tachikomaOllamaBaseURL = ""
+    @AppStorage("tachikomaOpenAIBaseURL") var tachikomaOpenAIBaseURL = ""
+    @AppStorage("tachikomaAnthropicBaseURL") var tachikomaAnthropicBaseURL = ""
+    @AppStorage("tachikomaGoogleBaseURL") var tachikomaGoogleBaseURL = ""
+    @AppStorage("tachikomaGrokBaseURL") var tachikomaGrokBaseURL = ""
+    @AppStorage("tachikomaGroqBaseURL") var tachikomaGroqBaseURL = ""
+    @AppStorage("tachikomaMistralBaseURL") var tachikomaMistralBaseURL = ""
+    @AppStorage("tachikomaMCPEnabled") var tachikomaMCPEnabled = false
+    @AppStorage("tachikomaMCPTransport") var tachikomaMCPTransport: String = "stdio"
+    @AppStorage("tachikomaMCPCommand") var tachikomaMCPCommand: String = ""
+    @AppStorage("tachikomaMCPArguments") var tachikomaMCPArguments: String = ""
+    @AppStorage("tachikomaMCPEnvironment") var tachikomaMCPEnvironment: String = ""
+    @AppStorage("tachikomaMCPHeaders") var tachikomaMCPHeaders: String = ""
+    @AppStorage("tachikomaMCPTimeout") var tachikomaMCPTimeout: Double = 30
+    @AppStorage("tachikomaMCPDescription") var tachikomaMCPDescription: String = ""
     
     var userInterfaceIdiom: LayoutType {
         #if os(visionOS)
@@ -36,6 +65,33 @@ class AppManager: ObservableObject {
         let ramInBytes = ProcessInfo.processInfo.physicalMemory
         let ramInGB = Double(ramInBytes) / (1024 * 1024 * 1024)
         return ramInGB
+    }
+
+    var currentModelSource: ChatModelSource {
+        get { ChatModelSource(rawValue: currentModelSourceRaw) ?? .local }
+        set { currentModelSourceRaw = newValue.rawValue }
+    }
+
+    var hasSelectedModel: Bool {
+        guard let currentModelName else { return false }
+        return !currentModelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var hasLocalModelsInstalled: Bool {
+        !installedModels.isEmpty
+    }
+
+    var hasUsableModelSelection: Bool {
+        guard hasSelectedModel, let modelName = currentModelName else {
+            return false
+        }
+
+        switch currentModelSource {
+        case .local:
+            return installedModels.contains(modelName)
+        case .tachikoma:
+            return TachikomaModelRegistry.model(for: modelName) != nil
+        }
     }
 
     enum LayoutType {
@@ -94,13 +150,91 @@ class AppManager: ObservableObject {
     func removeInstalledModel(_ model: String) {
         removeModelFromDisk(model)
         installedModels.removeAll { $0 == model }
-        if currentModelName == model {
+        if currentModelName == model, currentModelSource == .local {
             currentModelName = installedModels.first
         }
     }
 
     func modelDisplayName(_ modelName: String) -> String {
-        return modelName.replacingOccurrences(of: "mlx-community/", with: "").lowercased()
+        if let remote = TachikomaModelRegistry.model(for: modelName) {
+            return "\(remote.providerDisplayName) · \(remote.displayName)"
+        }
+        return modelName
+            .replacingOccurrences(of: "mlx-community/", with: "")
+            .replacingOccurrences(of: "_", with: " ")
+            .lowercased()
+    }
+
+    var remoteModelSections: [TachikomaModelSection] {
+        TachikomaModelRegistry.sections
+    }
+
+    func remoteModel(for identifier: String) -> TachikomaRemoteModel? {
+        TachikomaModelRegistry.model(for: identifier)
+    }
+
+    func apiKey(for provider: Provider) -> String? {
+        switch provider {
+        case .openai:
+            return sanitized(tachikomaOpenAIAPIKey)
+        case .anthropic:
+            return sanitized(tachikomaAnthropicAPIKey)
+        case .google:
+            return sanitized(tachikomaGoogleAPIKey)
+        case .grok:
+            return sanitized(tachikomaGrokAPIKey)
+        case .groq:
+            return sanitized(tachikomaGroqAPIKey)
+        case .mistral:
+            return sanitized(tachikomaMistralAPIKey)
+        case .ollama, .lmstudio:
+            return nil
+        case .custom:
+            return nil
+        }
+    }
+
+    func baseURL(for provider: Provider) -> String? {
+        switch provider {
+        case .openai:
+            return sanitized(tachikomaOpenAIBaseURL)
+        case .anthropic:
+            return sanitized(tachikomaAnthropicBaseURL)
+        case .google:
+            return sanitized(tachikomaGoogleBaseURL)
+        case .grok:
+            return sanitized(tachikomaGrokBaseURL)
+        case .groq:
+            return sanitized(tachikomaGroqBaseURL)
+        case .mistral:
+            return sanitized(tachikomaMistralBaseURL)
+        case .ollama:
+            return sanitized(tachikomaOllamaBaseURL)
+        case .lmstudio, .custom:
+            return nil
+        }
+    }
+
+    var mcpServerConfig: MCPServerConfig? {
+        guard tachikomaMCPEnabled else { return nil }
+        guard let command = sanitized(tachikomaMCPCommand) else { return nil }
+
+        let args = parseArguments(tachikomaMCPArguments)
+        let env = parseKeyValuePairs(tachikomaMCPEnvironment)
+        let headers = parseKeyValuePairs(tachikomaMCPHeaders)
+        let description = sanitized(tachikomaMCPDescription)
+
+        return MCPServerConfig(
+            transport: tachikomaMCPTransport,
+            command: command,
+            args: args,
+            env: env,
+            headers: headers.isEmpty ? nil : headers,
+            enabled: tachikomaMCPEnabled,
+            timeout: tachikomaMCPTimeout,
+            autoReconnect: true,
+            description: description
+        )
     }
     
     func getMoonPhaseIcon() -> String {
@@ -142,6 +276,34 @@ class AppManager: ObservableObject {
 }
 
 private extension AppManager {
+    func sanitized(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    func parseArguments(_ raw: String) -> [String] {
+        raw
+            .split(whereSeparator: { $0.isNewline || $0.isWhitespace })
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    func parseKeyValuePairs(_ raw: String) -> [String: String] {
+        raw
+            .split(whereSeparator: \.isNewline)
+            .reduce(into: [String: String]()) { result, line in
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmedLine.isEmpty else { return }
+                let parts = trimmedLine.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                guard parts.count == 2 else { return }
+                let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                let value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                if !key.isEmpty {
+                    result[key] = value
+                }
+            }
+    }
+
     func removeModelFromDisk(_ model: String) {
         guard let directory = modelDirectory(for: model) else { return }
         do {
@@ -208,6 +370,7 @@ final class Thread {
     var title: String?
     var timestamp: Date
     var modelName: String?
+    var modelSourceRaw: String?
 
     @Relationship var messages: [Message] = []
 
@@ -215,10 +378,21 @@ final class Thread {
         return messages.sorted { $0.timestamp < $1.timestamp }
     }
 
-    init(modelName: String? = nil) {
+    init(modelName: String? = nil, modelSource: ChatModelSource? = nil) {
         self.id = UUID()
         self.timestamp = Date()
         self.modelName = modelName
+        self.modelSourceRaw = modelSource?.rawValue
+    }
+
+    var modelSource: ChatModelSource? {
+        get {
+            guard let modelSourceRaw else { return nil }
+            return ChatModelSource(rawValue: modelSourceRaw)
+        }
+        set {
+            modelSourceRaw = newValue?.rawValue
+        }
     }
 }
 

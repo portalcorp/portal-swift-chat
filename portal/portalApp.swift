@@ -15,6 +15,7 @@ struct portalApp: App {
     #endif
     @StateObject var appManager = AppManager()
     @State var llm = LLMEvaluator()
+    @State var tachikomaService = TachikomaService()
     
     var body: some Scene {
         WindowGroup {
@@ -22,6 +23,7 @@ struct portalApp: App {
                 .modelContainer(for: [Thread.self, Message.self])
                 .environmentObject(appManager)
                 .environment(llm)
+                .environment(tachikomaService)
                 .environment(DeviceStat())
                 #if os(macOS) || os(visionOS)
                 .frame(minWidth: 640, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity)

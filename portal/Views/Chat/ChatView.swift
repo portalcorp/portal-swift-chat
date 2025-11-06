@@ -20,6 +20,7 @@ struct ChatView: View {
     @Environment(\.modelContext) var modelContext
     @Binding var currentThread: Thread?
     @Environment(LLMEvaluator.self) var llm
+    @Environment(TachikomaService.self) var tachikoma
     @Namespace var bottomID
     @State var showModelPicker = false
     @State var prompt = ""
@@ -80,11 +81,8 @@ struct ChatView: View {
     }
 
     var currentModelDisplayName: String {
-        let rawName = appManager.currentModelName ?? "chat"
-        if rawName.hasPrefix("mlx-community/") {
-            return String(rawName.dropFirst("mlx-community/".count))
-        }
-        return rawName
+        guard let rawName = appManager.currentModelName else { return "chat" }
+        return appManager.modelDisplayName(rawName)
     }
 
     var navigationPrimaryTitle: String {
@@ -117,10 +115,10 @@ struct ChatView: View {
         withAttachmentMenu {
             chatNavigationContent
         }
-        .alert("no models installed", isPresented: $showMissingModelAlert) {
+        .alert("model unavailable", isPresented: $showMissingModelAlert) {
             Button("ok", role: .cancel) {}
         } message: {
-            Text("No models are installed. Please install one to start chatting.")
+            Text("Select or configure a model in settings to start chatting.")
         }
     }
 
@@ -263,21 +261,39 @@ struct ChatView: View {
     }
 
     func generate() {
-        guard !appManager.installedModels.isEmpty, let activeModel = appManager.currentModelName, !activeModel.isEmpty else {
-            showOnboarding = true
+        guard let rawModel = appManager.currentModelName,
+              !rawModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
             showMissingModelAlert = true
             return
         }
 
+        let activeModel = rawModel.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch appManager.currentModelSource {
+        case .local:
+            if !appManager.installedModels.contains(activeModel) {
+                showOnboarding = true
+                showMissingModelAlert = true
+                return
+            }
+        case .tachikoma:
+            guard appManager.remoteModel(for: activeModel) != nil else {
+                showMissingModelAlert = true
+                return
+            }
+        }
+
         if !isPromptEmpty {
             if currentThread == nil {
-                let newThread = Thread(modelName: activeModel)
+                let newThread = Thread(modelName: activeModel, modelSource: appManager.currentModelSource)
                 currentThread = newThread
                 modelContext.insert(newThread)
             }
 
             if let currentThread = currentThread {
                 currentThread.modelName = activeModel
+                currentThread.modelSource = appManager.currentModelSource
                 try? modelContext.save()
                 generatingThreadID = currentThread.id
                 let thread = currentThread
@@ -297,13 +313,26 @@ struct ChatView: View {
                             role: .user, content: message, thread: thread,
                             imageAttachments: savedImageURLs))
                     isPromptFocused = true
-                    let output = await llm.generate(
-                        modelName: activeModel, thread: thread,
-                        systemPrompt: appManager.systemPrompt)
+                    let output: String
+                    switch appManager.currentModelSource {
+                    case .local:
+                        output = await llm.generate(
+                            modelName: activeModel,
+                            thread: thread,
+                            systemPrompt: appManager.systemPrompt
+                        )
+                    case .tachikoma:
+                        output = await tachikoma.generate(
+                            modelIdentifier: activeModel,
+                            thread: thread,
+                            systemPrompt: appManager.systemPrompt,
+                            appManager: appManager
+                        )
+                    }
                     sendMessage(
                         Message(
                             role: .assistant, content: output, thread: thread,
-                            generatingTime: llm.thinkingTime))
+                            generatingTime: appManager.currentModelSource == .local ? llm.thinkingTime : nil))
                     generatingThreadID = nil
                 }
             }

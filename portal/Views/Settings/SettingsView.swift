@@ -32,6 +32,10 @@ struct SettingsView: View {
                     }
                     .badge(appManager.modelDisplayName(appManager.currentModelName ?? ""))
                 }
+
+                NavigationLink(destination: TachikomaSettingsView()) {
+                    Label("remote config", systemImage: "slider.horizontal.3")
+                }
             }
 
             Section {
