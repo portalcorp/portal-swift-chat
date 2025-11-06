@@ -43,7 +43,6 @@ struct ChatsListView: View {
                             threadMetadata(for: thread)
                                 .foregroundStyle(.secondary)
                                 .font(.subheadline)
-                                .lineLimit(1)
                         }
                         #if os(macOS)
                             .swipeActions {
@@ -179,21 +178,32 @@ struct ChatsListView: View {
         }
     }
 
-    private func threadMetadata(for thread: Thread) -> Text {
-        let timestampText = Text(thread.timestamp.formatted())
+    @ViewBuilder
+    private func threadMetadata(for thread: Thread) -> some View {
+        let timestamp = thread.timestamp.formatted()
 
+        if let metadata = metadataString(for: thread, timestamp: timestamp) {
+            Text(verbatim: metadata)
+                .lineLimit(1)
+        } else {
+            Text(verbatim: timestamp)
+                .lineLimit(1)
+        }
+    }
+
+    private func metadataString(for thread: Thread, timestamp: String) -> String? {
         guard let modelName = thread.modelName, !modelName.isEmpty else {
-            return timestampText
+            return nil
         }
 
         let displayName = appManager.modelDisplayName(modelName)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !displayName.isEmpty else {
-            return timestampText
+            return nil
         }
 
-        return timestampText + Text(" · \(displayName)")
+        return "\(timestamp) · \(displayName)"
     }
 }
 
